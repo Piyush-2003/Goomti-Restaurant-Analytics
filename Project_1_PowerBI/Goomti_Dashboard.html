@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goomti Restaurant — Sales Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --surface: #ffffff;
+    --surface2: #f0f2f8;
+    --border: #e2e6f0;
+    --text: #1a1d2e;
+    --muted: #6b7280;
+    --accent: #c9a96e;
+    --blue: #2563eb;
+    --green: #059669;
+    --red: #dc2626;
+    --amber: #d97706;
+    --purple: #7c3aed;
+    --teal: #0891b2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-mark {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, #c9a96e, #a07840);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; color: #fff;
+  }
+  .logo-text { font-size: 16px; font-weight: 700; color: var(--text); }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .period-badge {
+    font-size: 11px; color: var(--muted);
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 5px 12px; border-radius: 20px;
+  }
+
+  /* Nav */
+  nav {
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+    padding: 0 28px;
+    display: flex; gap: 0;
+  }
+  .tab {
+    padding: 14px 20px; font-size: 13px; font-weight: 500; color: var(--muted);
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: color .2s, border-color .2s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+  /* Pages */
+  .page { display: none; padding: 24px 28px; max-width: 1400px; }
+  .page.active { display: block; }
+
+  /* Page title */
+  .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .page-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+  /* KPI Cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; font-weight: 500; }
+  .kpi-value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .kpi-blue { color: var(--blue) !important; }
+  .kpi-green { color: var(--green) !important; }
+  .kpi-red { color: var(--red) !important; }
+  .kpi-amber { color: var(--amber) !important; }
+
+  /* Charts */
+  .charts-row { display: grid; gap: 16px; margin-bottom: 16px; }
+  .cols-1 { grid-template-columns: 1fr; }
+  .cols-2 { grid-template-columns: 1fr 1fr; }
+  .cols-3 { grid-template-columns: 2fr 1fr; }
+  .cols-32 { grid-template-columns: 3fr 2fr; }
+
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .chart-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .chart-sub { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
+  .chart-wrap { position: relative; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 12px; border-bottom: 2px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .cat-pill { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 20px; background: #eff6ff; color: var(--blue); font-weight: 500; }
+  .bar-mini { height: 5px; border-radius: 3px; background: var(--blue); display: inline-block; }
+
+  /* Insights */
+  .insight-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .insight {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 10px; padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .insight-head { font-size: 11px; color: var(--blue); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .insight-body { font-size: 13px; color: var(--text); line-height: 1.6; }
+
+  /* Outlier callout */
+  .callout {
+    background: #fffbeb; border: 1px solid #fcd34d;
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 18px;
+    font-size: 12px; color: #92400e; line-height: 1.6;
+  }
+  .callout strong { color: #78350f; }
+
+  /* Donut layout */
+  .donut-layout { display: flex; align-items: center; gap: 20px; }
+  .donut-legend { flex: 1; }
+  .leg-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .leg-item:last-child { border-bottom: none; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; margin-right: 8px; }
+  .leg-name { display: flex; align-items: center; flex: 1; color: var(--text); }
+  .leg-val { color: var(--muted); font-weight: 500; }
+
+  /* Data notes */
+  .notes-section { margin-bottom: 28px; }
+  .notes-section h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .notes-section p { font-size: 13px; color: var(--muted); line-height: 1.8; margin-bottom: 8px; }
+  .notes-section ul { padding-left: 20px; }
+  .notes-section li { font-size: 13px; color: var(--muted); line-height: 2; }
+  .file-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; font-size: 11px; color: var(--muted); margin: 2px; }
+  .dax-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin: 10px 0; font-family: 'Consolas', monospace; font-size: 12px; color: var(--text); line-height: 1.8; white-space: pre-wrap; }
+  .dax-comment { color: var(--muted); }
+  .dax-fn { color: var(--blue); font-weight: 600; }
+  .dax-kw { color: var(--purple); font-weight: 600; }
+
+  @media (max-width: 700px) {
+    .cols-2, .cols-3, .cols-32 { grid-template-columns: 1fr; }
+    header, nav { padding: 0 14px; }
+    .page { padding: 14px; }
+    nav { overflow-x: auto; }
+    .tab { padding: 12px 12px; font-size: 12px; white-space: nowrap; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">G</div>
+    <div>
+      <div class="logo-text">Goomti Restaurant</div>
+      <div class="logo-sub">F&B Sales Analytics · Project 1</div>
+    </div>
+  </div>
+  <span class="period-badge">25 May – 23 Jun 2026</span>
+</header>
+
+<nav>
+  <div class="tab active" onclick="showPage('overview',this)">📊 Overview</div>
+  <div class="tab" onclick="showPage('channels',this)">📡 Channels</div>
+  <div class="tab" onclick="showPage('menu',this)">🍛 Menu Performance</div>
+  <div class="tab" onclick="showPage('customers',this)">👥 Customers</div>
+  <div class="tab" onclick="showPage('notes',this)">📋 Data Notes</div>
+</nav>
+
+<!-- PAGE 1: OVERVIEW -->
+<div class="page active" id="page-overview">
+  <div class="page-title">Business Overview</div>
+  <div class="page-subtitle">30-day performance summary across all channels · May–June 2026</div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Total Net Sales</div><div class="kpi-value kpi-blue">£18,859</div><div class="kpi-sub">all channels combined</div></div>
+    <div class="kpi"><div class="kpi-label">Total Orders</div><div class="kpi-value">418</div><div class="kpi-sub">30-day period</div></div>
+    <div class="kpi"><div class="kpi-label">Avg Order Value</div><div class="kpi-value kpi-green">£45.12</div><div class="kpi-sub">net sales ÷ orders</div></div>
+    <div class="kpi"><div class="kpi-label">Weekend Revenue</div><div class="kpi-value kpi-amber">£12,889</div><div class="kpi-sub">68% of total · Fri–Sun</div></div>
+    <div class="kpi"><div class="kpi-label">Tuesday Revenue</div><div class="kpi-value kpi-red">£0</div><div class="kpi-sub">closed every Tuesday</div></div>
+    <div class="kpi"><div class="kpi-label">Peak Hour</div><div class="kpi-value">10pm</div><div class="kpi-sub">£8,135 · 43% of sales</div></div>
+  </div>
+
+  <div class="charts-row cols-1">
+    <div class="chart-card">
+      <div class="chart-title">Daily Net Sales — All Channels</div>
+      <div class="chart-sub">25 May → 22 Jun 2026 · Green bars = high revenue days (£1,000+)</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="dailyChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-row cols-2">
+    <div class="chart-card">
+      <div class="chart-title">Revenue by Day of Week</div>
+      <div class="chart-sub">Monday → Sunday · Tuesday = closed</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="dowChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Sales by Hour of Day</div>
+      <div class="chart-sub">10pm spike = delivery batch processing</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="hourChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="insight-row">
+    <div class="insight" style="border-left-color:#059669">
+      <div class="insight-head" style="color:#059669">Weekend Effect</div>
+      <div class="insight-body">Fri–Sun generates <strong>£12,889 (68%)</strong> of all weekly revenue. Saturday alone averages <strong>£1,148/day</strong> vs £434 on Wednesday.</div>
+    </div>
+    <div class="insight" style="border-left-color:#d97706">
+      <div class="insight-head" style="color:#d97706">Tuesday Opportunity</div>
+      <div class="insight-body">Zero revenue every Tuesday. At Monday's average of <strong>£504/day</strong>, opening Tuesdays could add <strong>~£2,000/month</strong> in net sales.</div>
+    </div>
+    <div class="insight" style="border-left-color:#7c3aed">
+      <div class="insight-head" style="color:#7c3aed">10pm Revenue Spike</div>
+      <div class="insight-body"><strong>£8,135 (43%)</strong> of all hourly revenue falls at 10pm — driven by delivery order batch timestamps. Real dine-in peak is <strong>6pm at £1,759</strong>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: CHANNELS -->
+<div class="page" id="page-channels">
+  <div class="page-title">Channel Performance</div>
+  <div class="page-subtitle">Revenue breakdown across POS, delivery platforms and online ordering</div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Dine-in (POS)</div><div class="kpi-value kpi-green">£9,208</div><div class="kpi-sub">48.8% of net sales</div></div>
+    <div class="kpi"><div class="kpi-label">Uber Eats</div><div class="kpi-value kpi-blue">£4,679</div><div class="kpi-sub">24.8% · largest delivery</div></div>
+    <div class="kpi"><div class="kpi-label">Deliveroo</div><div class="kpi-value">£2,199</div><div class="kpi-sub">11.7% of net sales</div></div>
+    <div class="kpi"><div class="kpi-label">Avg Order Value</div><div class="kpi-value kpi-amber">£45.12</div><div class="kpi-sub">all channels</div></div>
+  </div>
+
+  <div class="charts-row cols-3">
+    <div class="chart-card">
+      <div class="chart-title">Net Sales by Channel</div>
+      <div class="chart-sub">Absolute £ value per platform</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="channelBar"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Channel Mix %</div>
+      <div class="chart-sub">Share of total net sales</div>
+      <div style="height:240px; display:flex; flex-direction:column; justify-content:center; gap:12px;">
+        <div style="width:140px; height:140px; margin:0 auto;"><canvas id="channelDonut"></canvas></div>
+        <div class="donut-legend" id="channelLegend"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="charts-row cols-2">
+    <div class="chart-card">
+      <div class="chart-title">Revenue by Channel Type</div>
+      <div class="chart-sub">In-person vs Delivery vs Online</div>
+      <div class="chart-wrap" style="height:160px"><canvas id="typeBar"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Channel Breakdown</div>
+      <div class="chart-sub">Exact figures per platform</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Channel</th><th>Net Sales</th><th>% Share</th><th>Type</th></tr></thead>
+          <tbody>
+            <tr><td><strong>POS / Dine-in</strong></td><td>£9,208.19</td><td>48.8%</td><td><span class="cat-pill" style="background:#dcfce7;color:#166534">In-person</span></td></tr>
+            <tr><td>Uber Eats</td><td>£4,678.55</td><td>24.8%</td><td><span class="cat-pill">Delivery</span></td></tr>
+            <tr><td>Deliveroo</td><td>£2,199.05</td><td>11.7%</td><td><span class="cat-pill">Delivery</span></td></tr>
+            <tr><td>Just Eat</td><td>£1,552.85</td><td>8.2%</td><td><span class="cat-pill">Delivery</span></td></tr>
+            <tr><td>Web</td><td>£1,195.65</td><td>6.3%</td><td><span class="cat-pill" style="background:#f3e8ff;color:#6b21a8">Online</span></td></tr>
+            <tr><td>Kiosk</td><td>£25.17</td><td>0.1%</td><td><span class="cat-pill" style="background:#dcfce7;color:#166534">In-person</span></td></tr>
+            <tr style="background:var(--surface2)"><td><strong>Total</strong></td><td><strong>£18,859.46</strong></td><td><strong>100%</strong></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight-row">
+    <div class="insight" style="border-left-color:#dc2626">
+      <div class="insight-head" style="color:#dc2626">Platform Fee Warning</div>
+      <div class="insight-body">Delivery brings in <strong>£8,430</strong> but Uber Eats/Deliveroo/JE charge 25–35% commission. Effective net after fees ≈ <strong>£5,500</strong>. Dine-in at £9,208 has near-zero platform cost.</div>
+    </div>
+    <div class="insight" style="border-left-color:#059669">
+      <div class="insight-head" style="color:#059669">Dine-in Dominates</div>
+      <div class="insight-body">POS / Dine-in is the single largest revenue channel at <strong>48.8%</strong> with no commission fees. Maximising dine-in covers is the highest-margin growth strategy.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 3: MENU -->
+<div class="page" id="page-menu">
+  <div class="page-title">Menu Performance</div>
+  <div class="page-subtitle">Item and category analysis · dine-in sales · cold food outliers excluded</div>
+
+  <div class="callout">
+    <strong>Data Cleaning Note:</strong> Cold Takeaway Food items (1,103 units, £0 revenue) were identified as outliers and excluded from all menu analysis. These are pre-packaged cold items logged in the POS but contributing £0 to revenue. See Data Notes tab for full methodology.
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Dine-in Net Sales</div><div class="kpi-value kpi-blue">£5,450</div><div class="kpi-sub">112 active menu items</div></div>
+    <div class="kpi"><div class="kpi-label">Total Covers</div><div class="kpi-value">615</div><div class="kpi-sub">items sold dine-in</div></div>
+    <div class="kpi"><div class="kpi-label">Top Revenue Item</div><div class="kpi-value" style="font-size:14px;padding-top:4px">Maharaja Thali</div><div class="kpi-sub">£1,039 · 19% of dine-in</div></div>
+    <div class="kpi"><div class="kpi-label">Top Volume Item</div><div class="kpi-value" style="font-size:14px;padding-top:4px">Poppadoms</div><div class="kpi-sub">37 sold · £155 revenue</div></div>
+  </div>
+
+  <div class="charts-row cols-2">
+    <div class="chart-card">
+      <div class="chart-title">Top 10 Items by Revenue</div>
+      <div class="chart-sub">Dine-in net sales · Grand Maharaja Thali dominates</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="topRevChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top 10 Items by Volume</div>
+      <div class="chart-sub">Units sold dine-in · Poppadoms leads by count</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="topVolChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-row cols-1">
+    <div class="chart-card">
+      <div class="chart-title">Net Sales by Category — All Channels</div>
+      <div class="chart-sub">Classic Indian Curries leads · Artisanal Breads highest by volume (356 sold)</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="catChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-card" style="margin-bottom:16px">
+    <div class="chart-title">Menu Item Detail — Dine-in</div>
+    <div class="chart-sub">Top 15 items sorted by revenue · avg price = net sales ÷ items sold</div>
+    <div class="table-wrap">
+      <table id="menuTable">
+        <thead><tr><th>#</th><th>Item</th><th>Category</th><th>Sold</th><th>Avg Price</th><th>Net Sales</th><th>Share</th></tr></thead>
+        <tbody id="menuTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="insight-row">
+    <div class="insight" style="border-left-color:#059669">
+      <div class="insight-head" style="color:#059669">Pareto Finding</div>
+      <div class="insight-body">Top 10 items (9% of menu) generate <strong>51% of dine-in revenue</strong>. Grand Maharaja Thali alone — just 14 covers — accounts for <strong>19%</strong> of all dine-in sales.</div>
+    </div>
+    <div class="insight" style="border-left-color:#7c3aed">
+      <div class="insight-head" style="color:#7c3aed">Volume vs Revenue Gap</div>
+      <div class="insight-body"><strong>Poppadoms</strong> is the #1 volume item (37 sold) but only generates £155. <strong>Grand Maharaja Thali</strong> sells 14 units but earns £1,039. High price × moderate volume wins.</div>
+    </div>
+    <div class="insight" style="border-left-color:#d97706">
+      <div class="insight-head" style="color:#d97706">Pricing Opportunity</div>
+      <div class="insight-body">Goomti Signature dishes average <strong>£13.31/cover</strong>. Market benchmark for premium Indian restaurants is £16–18. A price adjustment could add <strong>~£75–125/month</strong>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 4: CUSTOMERS -->
+<div class="page" id="page-customers">
+  <div class="page-title">Customer Analysis</div>
+  <div class="page-subtitle">Retention metrics and opportunity modelling · online channel customers only</div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Unique Customers</div><div class="kpi-value">124</div><div class="kpi-sub">online/delivery channel</div></div>
+    <div class="kpi"><div class="kpi-label">Repeat Customers</div><div class="kpi-value kpi-red">16</div><div class="kpi-sub">only 13% return</div></div>
+    <div class="kpi"><div class="kpi-label">One-Time Customers</div><div class="kpi-value kpi-amber">108</div><div class="kpi-sub">87% never returned</div></div>
+    <div class="kpi"><div class="kpi-label">Avg Days Between Orders</div><div class="kpi-value">25.5</div><div class="kpi-sub">for repeat customers</div></div>
+    <div class="kpi"><div class="kpi-label">Repeat Rate</div><div class="kpi-value kpi-red">13%</div><div class="kpi-sub">industry avg: 25–40%</div></div>
+    <div class="kpi"><div class="kpi-label">Retention Opportunity</div><div class="kpi-value kpi-green">£487</div><div class="kpi-sub">if 10% dormant return</div></div>
+  </div>
+
+  <div class="charts-row cols-2">
+    <div class="chart-card">
+      <div class="chart-title">Repeat vs One-Time Customers</div>
+      <div class="chart-sub">87% of customers never returned this period</div>
+      <div class="donut-layout" style="height:220px; align-items:center;">
+        <div style="width:160px; height:160px; flex-shrink:0;"><canvas id="retentionDonut"></canvas></div>
+        <div style="flex:1; padding-left:16px;">
+          <div style="margin-bottom:16px;">
+            <div style="font-size:36px; font-weight:700; color:var(--red)">87%</div>
+            <div style="font-size:12px; color:var(--muted)">One-time buyers · 108 customers</div>
+          </div>
+          <div>
+            <div style="font-size:36px; font-weight:700; color:var(--green)">13%</div>
+            <div style="font-size:12px; color:var(--muted)">Returning customers · 16 customers</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Retention Opportunity Model</div>
+      <div class="chart-sub">Revenue if X% of 108 dormant customers return at £45.12 avg order</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="retentionModel"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-row cols-2">
+    <div class="chart-card">
+      <div class="chart-title">Historical Monthly Orders</div>
+      <div class="chart-sub">Online channel · Jan–Mar 2026</div>
+      <div class="chart-wrap" style="height:160px"><canvas id="histOrders"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Customer Metrics vs Industry Benchmark</div>
+      <div class="chart-sub">Goomti vs typical casual dining restaurant</div>
+      <div class="table-wrap" style="margin-top:8px;">
+        <table>
+          <thead><tr><th>Metric</th><th>Goomti</th><th>Industry Avg</th><th>Gap</th></tr></thead>
+          <tbody>
+            <tr><td>Repeat Rate</td><td style="color:var(--red);font-weight:600">13%</td><td>25–40%</td><td style="color:var(--red)">−12 to −27pp</td></tr>
+            <tr><td>Orders per Customer</td><td style="color:var(--red);font-weight:600">1.19</td><td>2.5–3.5</td><td style="color:var(--red)">−1.3 to −2.3</td></tr>
+            <tr><td>Avg Days Between Orders</td><td style="color:var(--amber);font-weight:600">25.5</td><td>14–21</td><td style="color:var(--amber)">+4 to +11 days</td></tr>
+            <tr><td>Avg Order Value</td><td style="color:var(--green);font-weight:600">£45.12</td><td>£25–40</td><td style="color:var(--green)">+£5 to +£20</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight-row">
+    <div class="insight" style="border-left-color:#dc2626">
+      <div class="insight-head" style="color:#dc2626">Critical Retention Gap</div>
+      <div class="insight-body">At 1.19 orders per customer, almost everyone is a first-timer. Industry benchmark is <strong>2.5–3.5 orders/year</strong>. This is the single biggest revenue opportunity in the business.</div>
+    </div>
+    <div class="insight" style="border-left-color:#059669">
+      <div class="insight-head" style="color:#059669">Re-engagement Campaign</div>
+      <div class="insight-body">Targeting just <strong>10% of 108 dormant customers</strong> (≈ 11 people) at avg £45.12 = <strong>+£496/month</strong> with zero new customer acquisition cost.</div>
+    </div>
+    <div class="insight" style="border-left-color:#7c3aed">
+      <div class="insight-head" style="color:#7c3aed">25-Day Re-order Window</div>
+      <div class="insight-body">Repeat customers return every <strong>25.5 days</strong>. A "Come back within 30 days" loyalty offer aligns perfectly with this natural rhythm and could double the repeat rate.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 5: DATA NOTES -->
+<div class="page" id="page-notes">
+  <div class="page-title">Data Notes & Methodology</div>
+  <div class="page-subtitle">Transparency on data sources, cleaning decisions and DAX measures used</div>
+
+  <div class="notes-section">
+    <h2>Data Sources</h2>
+    <p>This dashboard was built from 5 raw exports from Goomti's Flipdish POS and delivery platform:</p>
+    <div style="margin:10px 0 14px;">
+      <span class="file-chip">📊 Dine_Items_sales.xlsx</span>
+      <span class="file-chip">📋 June_Dine_in_sales_per_day.csv</span>
+      <span class="file-chip">📁 dashboard-business_review.zip</span>
+      <span class="file-chip">📁 dashboard-menu_items_report.zip</span>
+      <span class="file-chip">📁 dashboard-sales_summary_report.zip</span>
+    </div>
+    <p>The data covers <strong>25 May 2026 to 23 June 2026</strong> (approximately 30 days). Historical order data (Jan–Mar 2026) was extracted from the business review ZIP for the customer trend chart.</p>
+  </div>
+
+  <div class="notes-section">
+    <h2>Outlier Identification & Removal</h2>
+    <p>During data preparation, a <strong>"COLD TAKEAWAY FOOD"</strong> category was identified as an outlier group:</p>
+    <ul>
+      <li><strong>1,103 units sold</strong> — highest volume category by a significant margin</li>
+      <li><strong>£0.00 net revenue</strong> — zero monetary contribution despite high unit count</li>
+      <li>Items include: Cold Pakora/Bhaji Trays, Cold Samosas, Cold Sandwiches, Cold Wraps — all pre-packaged zero-price items</li>
+    </ul>
+    <p style="margin-top:10px;"><strong>Decision:</strong> Excluded from all menu performance analysis. They remain in raw source data and are documented here for transparency. Inclusion would have distorted revenue-per-item calculations and category rankings.</p>
+    <p><strong>Method:</strong> String-match filter on item names containing "Cold", "Chilled", or "Takeaway" combined with a £0 revenue filter.</p>
+    <p style="margin-top:8px;"><strong>Also removed:</strong> A grand total row exported at the bottom of fact_sales_overview.csv which contained the period total (£18,859, 418 orders) as a data row — this was causing all KPI measures to double-count.</p>
+  </div>
+
+  <div class="notes-section">
+    <h2>DAX Measures Used</h2>
+    <div class="dax-box"><span class="dax-comment">-- Core revenue measures</span>
+<span class="dax-fn">Total Net Sales</span> = <span class="dax-fn">SUM</span>(fact_sales_overview[Net_Sales])
+<span class="dax-fn">Total Orders</span> = <span class="dax-fn">SUM</span>(fact_sales_overview[Orders])
+<span class="dax-fn">Avg Order Value</span> = <span class="dax-fn">DIVIDE</span>([Total Net Sales], [Total Orders], 0)
+
+<span class="dax-comment">-- Weekend analysis using CALCULATE + IN filter</span>
+<span class="dax-fn">Weekend Revenue</span> = <span class="dax-fn">CALCULATE</span>([Total Net Sales], fact_sales_overview[Day_of_Week] <span class="dax-kw">IN</span> {"Friday","Saturday","Sunday"})
+<span class="dax-fn">Weekend Pct</span> = <span class="dax-fn">DIVIDE</span>([Weekend Revenue], [Total Net Sales], 0)
+
+<span class="dax-comment">-- Menu measures</span>
+<span class="dax-fn">Dine-in Menu Sales</span> = <span class="dax-fn">SUM</span>(dim_menu_items[Net_Sales])
+<span class="dax-fn">Total Items Sold</span> = <span class="dax-fn">SUM</span>(dim_menu_items[Items_Sold])
+
+<span class="dax-comment">-- Channel measures</span>
+<span class="dax-fn">Dine-in Sales</span> = <span class="dax-fn">CALCULATE</span>(<span class="dax-fn">SUM</span>(dim_channels[Net_Sales]), dim_channels[Channel] = "POS / Dine-in")
+<span class="dax-fn">Delivery Sales</span> = <span class="dax-fn">CALCULATE</span>(<span class="dax-fn">SUM</span>(dim_channels[Net_Sales]), dim_channels[Type] = "Delivery")
+
+<span class="dax-comment">-- Customer metrics (hardcoded — source data is summary level, not row level)</span>
+<span class="dax-fn">Unique Customers</span> = 124
+<span class="dax-fn">Repeat Customers</span> = 16
+<span class="dax-fn">Repeat Customer Pct</span> = 0.13
+<span class="dax-fn">Retention Opportunity</span> = <span class="dax-fn">ROUND</span>(124 * 0.87 * 0.10 * 45.12, 0)</div>
+  </div>
+
+  <div class="notes-section">
+    <h2>Known Data Limitations</h2>
+    <ul>
+      <li>Tuesday revenue = £0 on all weeks — confirmed closed day, not missing data</li>
+      <li>10pm hourly spike (£8,135) likely reflects delivery batch processing timestamps, not actual 10pm dine-in covers</li>
+      <li>Customer data covers online/delivery channel only — walk-in dine-in customers without accounts are not captured, so real unique customer count is higher than 124</li>
+      <li>COGS shows £0 across all records — not populated in source system, so Gross Profit = Net Sales throughout</li>
+      <li>Customer hardcoded measures (Unique Customers = 124 etc.) are sourced from summary-level business review export — a recommendation for the business is to enable Customer ID tracking across all channels for proper RFM analysis</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+const GRID = 'rgba(0,0,0,0.06)';
+const MUTED = '#6b7280';
+const baseOpts = (horiz) => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1d2e', titleColor: '#fff', bodyColor: '#9ca3af', padding: 10, cornerRadius: 8 } },
+  scales: horiz ? {
+    x: { grid: { color: GRID }, ticks: { color: MUTED, font: { size: 11 }, callback: v => '£' + v.toLocaleString() } },
+    y: { grid: { display: false }, ticks: { color: MUTED, font: { size: 11 } } }
+  } : {
+    x: { grid: { display: false }, ticks: { color: MUTED, font: { size: 11 } } },
+    y: { grid: { color: GRID }, ticks: { color: MUTED, font: { size: 11 }, callback: v => '£' + v.toLocaleString() } }
+  }
+});
+
+// P1: Daily
+new Chart(document.getElementById('dailyChart'), {
+  type: 'bar',
+  data: {
+    labels: ['25M','27M','28M','29M','30M','31M','1J','3J','4J','5J','6J','7J','8J','10J','11J','12J','13J','14J','15J','17J','18J','19J','20J','21J','22J'],
+    datasets: [
+      { type:'line', data: [null,null,null,null,null,null,null,648,648,648,648,648,648,648,648,648,648,648,648,648,648,648,648,648,648], borderColor:'#c9a96e', borderWidth:1.5, borderDash:[5,4], pointRadius:0, fill:false, label:'7-day avg' },
+      { type:'bar', data: [760.87,422.54,448.70,1158.32,1329.41,956.85,611.39,513.10,355.28,1079.46,918.38,1350.54,273.10,351.83,312.59,1122.30,1372.43,422.49,438.73,449.43,600.00,720.64,971.91,1485.61,433.53],
+        backgroundColor: ctx => ctx.raw >= 1000 ? '#059669' : ctx.raw >= 600 ? '#2563eb' : '#bfdbfe',
+        borderRadius: 3, label:'Net Sales' }
+    ]
+  },
+  options: { ...baseOpts(false), scales: { ...baseOpts(false).scales, x: { ...baseOpts(false).scales.x, ticks: { color: MUTED, font:{ size:10 }, maxRotation:0, autoSkip:true, maxTicksLimit:13 } } } }
+});
+
+// P1: DoW
+new Chart(document.getElementById('dowChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Mon','Tue\n(closed)','Wed','Thu','Fri','Sat','Sun'],
+    datasets: [{ data: [2517.62,0,1736.90,1716.57,4080.72,4592.13,4215.49],
+      backgroundColor: ['#2563eb','#e5e7eb','#2563eb','#2563eb','#059669','#c9a96e','#059669'],
+      borderRadius: 4 }]
+  },
+  options: baseOpts(false)
+});
+
+// P1: Hourly
+new Chart(document.getElementById('hourChart'), {
+  type: 'bar',
+  data: {
+    labels: ['11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'],
+    datasets: [{ data: [379.44,412.86,356.16,485.19,589.93,801.40,1458.55,1758.90,1578.91,781.74,1277.12,8135.36,843.90],
+      backgroundColor: ctx => ctx.dataIndex === 11 ? '#dc2626' : '#2563eb',
+      borderRadius: 3 }]
+  },
+  options: baseOpts(false)
+});
+
+// P2: Channel bar
+new Chart(document.getElementById('channelBar'), {
+  type: 'bar',
+  data: {
+    labels: ['POS/Dine-in','Uber Eats','Deliveroo','Just Eat','Web','Kiosk'],
+    datasets: [{ data: [9208.19,4678.55,2199.05,1552.85,1195.65,25.17],
+      backgroundColor: ['#059669','#2563eb','#0891b2','#d97706','#7c3aed','#9ca3af'],
+      borderRadius: 4 }]
+  },
+  options: baseOpts(false)
+});
+
+// P2: Donut
+const chCols = ['#059669','#2563eb','#0891b2','#d97706','#7c3aed','#9ca3af'];
+const chLabels = ['POS/Dine-in','Uber Eats','Deliveroo','Just Eat','Web','Kiosk'];
+const chVals = [9208.19,4678.55,2199.05,1552.85,1195.65,25.17];
+const chPcts = ['48.8%','24.8%','11.7%','8.2%','6.3%','0.1%'];
+new Chart(document.getElementById('channelDonut'), {
+  type: 'doughnut',
+  data: { labels: chLabels, datasets: [{ data: chVals, backgroundColor: chCols, borderWidth: 2, borderColor: '#fff' }] },
+  options: { responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{ display:false } } }
+});
+const leg = document.getElementById('channelLegend');
+chLabels.forEach((l,i) => {
+  leg.innerHTML += `<div class="leg-item"><span class="leg-name"><span class="leg-dot" style="background:${chCols[i]}"></span>${l}</span><span class="leg-val">${chPcts[i]}</span></div>`;
+});
+
+// P2: Type bar
+new Chart(document.getElementById('typeBar'), {
+  type: 'bar',
+  data: {
+    labels: ['In-person','Delivery','Online'],
+    datasets: [{ data: [9233.36,8430.45,1195.65], backgroundColor: ['#059669','#2563eb','#7c3aed'], borderRadius: 4 }]
+  },
+  options: baseOpts(false)
+});
+
+// P3: Top revenue
+new Chart(document.getElementById('topRevChart'), {
+  type: 'bar', indexAxis: 'y',
+  data: {
+    labels: ['Grand Maharaja Thali','Bottomless Curry Thali','Open Food','Poppadoms & Chutney','Chicken Tikka Masala','Butter Chicken','Rara Lamb','Pilau Rice','Kadhai Paneer','Metka Chicken'],
+    datasets: [{ data: [1039.35,336.39,325.85,154.86,152.96,142.27,125.55,119.26,116.62,103.60],
+      backgroundColor: '#059669', borderRadius: 3 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{backgroundColor:'#1a1d2e',titleColor:'#fff',bodyColor:'#9ca3af',padding:10} },
+    scales:{ x:{grid:{color:GRID},ticks:{color:MUTED,font:{size:11},callback:v=>'£'+v}}, y:{grid:{display:false},ticks:{color:MUTED,font:{size:10}}} }
+  }
+});
+
+// P3: Top volume
+new Chart(document.getElementById('topVolChart'), {
+  type: 'bar', indexAxis: 'y',
+  data: {
+    labels: ['Poppadoms & Chutney','Pilau Rice','Bottomless Curry Thali','Mushroom Pulao','Jaljeera Lemonade','Steamed Basmati Rice','Tandoori Roti','Grand Maharaja Thali','Open Food','Chicken Tikka Masala'],
+    datasets: [{ data: [37,27,26,19,18,17,17,14,13,13],
+      backgroundColor: '#2563eb', borderRadius: 3 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{backgroundColor:'#1a1d2e',titleColor:'#fff',bodyColor:'#9ca3af',padding:10} },
+    scales:{ x:{grid:{color:GRID},ticks:{color:MUTED,font:{size:11}}}, y:{grid:{display:false},ticks:{color:MUTED,font:{size:10}}} }
+  }
+});
+
+// P3: Category
+new Chart(document.getElementById('catChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Classic\nIndian\nCurries','Traditional\nBritish\nCurries','Aromatic\nRice','Artisanal\nBreads','Fusion\nChinese\nStarters','Combo\nBox','Non-Veg\nStarters','Fusion\nChinese\nDishes','Quick\nNibbles'],
+    datasets: [{ data: [1869.35,1455.27,1167.14,1112.75,591.66,563.75,470.67,263.20,240.96],
+      backgroundColor: ['#059669','#2563eb','#7c3aed','#0891b2','#d97706','#dc2626','#c9a96e','#059669','#2563eb'],
+      borderRadius: 3 }]
+  },
+  options: baseOpts(false)
+});
+
+// P3: Menu table
+const menuItems = [
+  ['Grand Maharaja Thali','Thali',14,74.24,1039.35],
+  ['Bottomless Curry Thali','Bottomless',26,12.94,336.39],
+  ['Open Food','No category',13,25.07,325.85],
+  ['Poppadoms & Chutney','Quick Nibbles',37,4.19,154.86],
+  ['Chicken Tikka Masala','Classic Indian',13,11.77,152.96],
+  ['Butter Chicken','Classic Indian',12,11.86,142.27],
+  ['Rara Lamb','Goomti Signature',9,13.95,125.55],
+  ['Pilau Rice','Aromatic Rice',27,4.42,119.26],
+  ['Kadhai Paneer','Classic Indian',11,10.60,116.62],
+  ['Metka Chicken','Goomti Signature',8,12.95,103.60],
+  ['Madras Curry','Traditional British',9,11.45,103.05],
+  ['Mushroom Pulao','Aromatic Rice',19,4.26,81.03],
+  ['Bhuna','Traditional British',7,11.61,81.26],
+  ['Jaljeera Lemonade','Mocktails',18,3.67,66.00],
+  ['Onion Pakora','Veg Starters',10,6.45,64.50],
+];
+const totalSales = 5449.98;
+const tb = document.getElementById('menuTbody');
+menuItems.forEach((r,i) => {
+  const pct = (r[4]/totalSales*100).toFixed(1);
+  const bw = Math.round(r[4]/1039.35*70);
+  tb.innerHTML += `<tr>
+    <td style="color:var(--muted)">${i+1}</td>
+    <td style="font-weight:600">${r[0]}</td>
+    <td><span class="cat-pill">${r[1]}</span></td>
+    <td>${r[2]}</td>
+    <td style="color:var(--green);font-weight:600">£${r[3].toFixed(2)}</td>
+    <td style="font-weight:700">£${r[4].toFixed(2)}</td>
+    <td><span class="bar-mini" style="width:${bw}px"></span> <span style="color:var(--muted);font-size:11px">${pct}%</span></td>
+  </tr>`;
+});
+
+// P4: Retention donut
+new Chart(document.getElementById('retentionDonut'), {
+  type: 'doughnut',
+  data: { datasets: [{ data: [16,108], backgroundColor: ['#059669','#fee2e2'], borderWidth: 2, borderColor: '#fff' }] },
+  options: { responsive:true, maintainAspectRatio:false, cutout:'70%', plugins:{ legend:{display:false} } }
+});
+
+// P4: Retention model
+new Chart(document.getElementById('retentionModel'), {
+  type: 'bar',
+  data: {
+    labels: ['5% return','10% return','15% return','20% return'],
+    datasets: [{ data: [243,487,730,974],
+      backgroundColor: ['#bfdbfe','#2563eb','#1d4ed8','#1e3a8a'],
+      borderRadius: 4 }]
+  },
+  options: { ...baseOpts(false), plugins: { ...baseOpts(false).plugins,
+    tooltip: { ...baseOpts(false).plugins.tooltip, callbacks: { label: ctx => ' £' + ctx.raw + '/month extra revenue' } }
+  }}
+});
+
+// P4: Historical orders
+new Chart(document.getElementById('histOrders'), {
+  type: 'bar',
+  data: {
+    labels: ['Jan 2026','Feb 2026','Mar 2026'],
+    datasets: [
+      { label:'Delivery', data:[28,30,17], backgroundColor:'#2563eb', borderRadius:3 },
+      { label:'Pick-up', data:[29,19,24], backgroundColor:'#059669', borderRadius:3 }
+    ]
+  },
+  options: { ...baseOpts(false),
+    plugins: { ...baseOpts(false).plugins, legend:{ display:true, labels:{ color:MUTED, font:{size:11}, boxWidth:10, padding:12 } } }
+  }
+});
+</script>
+</body>
+</html>
